@@ -1,6 +1,6 @@
 # ONE SECOND
 
-A small, offline-capable timing game built with plain HTML, CSS, and JavaScript modules. It has no build step, backend, analytics, ads, external fonts, or CDN dependencies.
+A small, offline-capable timing game built with plain HTML, CSS, and JavaScript modules. It has no build step, backend, ads, external fonts, or CDN dependencies. Cookie-less GoatCounter analytics records `game-start`, `game-over` (by score band), `second-game`, `return-d1`, and `return-day1` events. Analytics is optional and the game continues to work when its script is unavailable.
 
 ## Rules
 
@@ -20,6 +20,7 @@ Run the game logic checks with:
 
 ```sh
 node tests/judge.test.mjs
+node tests/analytics.test.mjs
 ```
 
 ## Files
@@ -29,4 +30,5 @@ node tests/judge.test.mjs
 - `manifest.webmanifest`, `sw.js`: install metadata and offline cache
 - `icons/`, `splash/`: app icons and iOS startup images
 - `tests/judge.test.mjs`: angle judgment, difficulty, and combo checks
+- `tests/analytics.test.mjs`: analytics score band checks
 - `tools/make_icons.py`: regenerate PNG icons and startup images (requires Pillow)

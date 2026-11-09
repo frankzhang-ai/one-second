@@ -81,35 +81,22 @@ button {
   box-shadow:0 4px 16px #57513c0d;
   position:relative
 }
-.sound:before {
-  content:"";
-  position:absolute;
-  left:14px;
-  top:16px;
-  width:9px;
-  height:12px;
-  background:var(--lavender);
-  clip-path:polygon(0 30%,45% 30%,100% 0,100% 100%,45% 70%,0 70%)
+.sound svg {
+  width:22px;
+  height:22px;
+  fill:none;
+  stroke:#353431;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round
 }
-.sound:after {
-  content:"";
-  position:absolute;
-  left:25px;
-  top:15px;
-  width:9px;
-  height:14px;
-  border:1.6px solid var(--ink);
-  border-left:0;
-  border-top-color:transparent;
-  border-bottom-color:transparent;
-  border-radius:0 100% 100% 0
-}
-.sound.off:after {
-  content:"×";
-  left:26px;
-  top:10px;
-  border:0;
-  font-size:19px
+.sound .sound-off { display:none }
+.sound.off .sound-on { display:none }
+.sound.off .sound-off { display:block }
+.sound {
+  display:flex;
+  align-items:center;
+  justify-content:center
 }
 .home-center {
   margin:auto 0;
@@ -329,7 +316,12 @@ button {
   letter-spacing:.17em;
   font-weight:700;
   color:#aaa59b;
-  margin:4px 0 8px
+  margin:4px 0 8px;
+  opacity:1;
+  transition:opacity .6s ease
+}
+.tap-hint.faded {
+  opacity:0
 }
 .end {
   justify-content:center;

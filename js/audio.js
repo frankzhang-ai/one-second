@@ -15,6 +15,31 @@ export function unlock() {
   if (context?.state === 'suspended') context.resume().catch(() => {});
 }
 
+// iOS Safari may require a short buffer source during a user gesture before
+// later oscillator tones become audible.
+function gestureUnlock() {
+  try {
+    unlock();
+    if (!context) return;
+    const buffer = context.createBuffer(1, 1, context.sampleRate);
+    const source = context.createBufferSource();
+    const gain = context.createGain();
+    gain.gain.value = 0;
+    source.buffer = buffer;
+    source.connect(gain);
+    gain.connect(context.destination);
+    source.start(0);
+    document.removeEventListener('pointerdown', gestureUnlock);
+    document.removeEventListener('touchend', gestureUnlock);
+  } catch {}
+}
+
+document.addEventListener('pointerdown', gestureUnlock, { passive: true });
+document.addEventListener('touchend', gestureUnlock, { passive: true });
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && context?.state === 'suspended') context.resume().catch(() => {});
+});
+
 // Play the tone associated with a judgment or level up.
 export function tone(kind) {
   if (!enabled || !context) return;

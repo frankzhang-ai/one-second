@@ -3,6 +3,7 @@ import { createRenderer } from './render.js';
 import { bindInput } from './input.js';
 import { getBest, saveBest, getSound, saveSound } from './storage.js';
 import { setEnabled, unlock, tone } from './audio.js';
+import { track, trackReturns, scoreBand } from './analytics.js';
 
 // Cache app elements and initialize the current run.
 const $ = id => document.getElementById(id);
@@ -17,6 +18,10 @@ let lastFrame = 0;
 let anim = 0;
 let newBestThisRun = false;
 const renderer = createRenderer($('board'));
+let tapsThisRun = 0;
+let runsThisPage = 0;
+const tapHint = document.querySelector('.tap-hint');
+trackReturns();
 
 // Switch between the three main screens.
 function show(screen) {
@@ -60,6 +65,11 @@ function updateUI() {
 // Start a run directly from a Play control.
 function start() {
   unlock();
+  runsThisPage++;
+  track('game-start');
+  if (runsThisPage === 2) track('second-game');
+  tapsThisRun = 0;
+  tapHint.classList.remove('faded');
   newBestThisRun = false;
   state = newGame(best);
   paused = false;
@@ -71,6 +81,7 @@ function start() {
 
 // Show the final score and save a new record when a run ends.
 function finish() {
+  track('game-over', `score ${scoreBand(state.score)}`);
   updateBest(state.score);
   $('final-score').textContent = state.score;
   $('new-best').classList.toggle('hidden', !newBestThisRun);
@@ -100,6 +111,8 @@ function playAttempt() {
   const previousBest = best;
   state = attempt(state, performance.now());
   if (state.duplicate) return;
+  tapsThisRun++;
+  if (tapsThisRun >= 3) tapHint.classList.add('faded');
   if (state.score > previousBest) {
     newBestThisRun = true;
     updateBest(state.score);
@@ -143,7 +156,10 @@ $('quit').addEventListener('click', () => {
 let sound = getSound();
 function refreshSound() {
   setEnabled(sound);
-  document.querySelectorAll('.sound').forEach(button => button.classList.toggle('off', !sound));
+  document.querySelectorAll('.sound').forEach(button => {
+    button.classList.toggle('off', !sound);
+    button.setAttribute('aria-pressed', String(sound));
+  });
 }
 document.querySelectorAll('.sound').forEach(button => button.addEventListener('click', () => {
   sound = !sound;
