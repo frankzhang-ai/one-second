@@ -33,4 +33,25 @@ base64 -w0 upload.jks
 
 Put the base64 output in `ANDROID_KEYSTORE_BASE64`. Never commit `upload.jks` or its passwords. Google Play App Signing should be enabled; keep the upload key separate from the Play app signing key.
 
-For TestFlight/App Store distribution, the commented workflow documents these secrets: `IOS_CERTIFICATE_P12_BASE64`, `IOS_CERTIFICATE_PASSWORD`, `IOS_PROVISIONING_PROFILE_BASE64`, `APPSTORE_CONNECT_API_KEY_ID`, `APPSTORE_CONNECT_API_ISSUER_ID`, `APPSTORE_CONNECT_API_KEY_P8`. Apple setup requires an Apple Developer Program membership, an App ID, an Apple Distribution certificate, an App Store provisioning profile, and an App Store Connect API key with its issuer ID and private key.
+### iOS (TestFlight) – only 3 secrets
+
+The `testflight` job in `.github/workflows/ios.yml` is commented out until the Apple Developer account is active. It signs with an App Store Connect API key only (Xcode automatic signing + Apple cloud-managed distribution certificate), so no `.p12` certificate or provisioning profile is stored anywhere and no Mac is needed.
+
+| Secret | Value |
+|---|---|
+| `ASC_KEY_ID` | Key ID of the API key (10 characters) |
+| `ASC_ISSUER_ID` | Issuer ID shown above the keys list (UUID) |
+| `ASC_KEY_P8` | Full text of the downloaded `AuthKey_XXXXXXXXXX.p8` file, including the BEGIN/END lines |
+
+Optional repository **variable** (not a secret): `APPLE_TEAM_ID`. If not set, the job looks up the team ID from the API key.
+
+Create the API key (needs the Account Holder or an Admin):
+
+1. Sign in to [App Store Connect](https://appstoreconnect.apple.com) → **Users and Access** → **Integrations** → **App Store Connect API** → **Team Keys**. The Account Holder may first need to click **Request Access**.
+2. Click **Generate API Key** (or **+**), name it e.g. `GitHub Actions`, choose role **Admin**. App Manager can upload builds, but Apple cloud-managed distribution signing generally requires Admin, so use Admin unless you know App Manager works for your team.
+3. Download the `.p8` file (it can be downloaded only once) and copy the **Key ID** and **Issuer ID**.
+4. In GitHub: repo **Settings → Secrets and variables → Actions → New repository secret**, add the three secrets above. Delete the local `.p8` copy afterwards or keep it in a password manager.
+
+Before the first upload, create the app record in App Store Connect (**Apps → + → New App**, bundle ID `com.frankzhang.onesecond`; the job registers the bundle ID if it does not exist yet). Then uncomment the `testflight` job and run it via **Actions → iOS simulator build → Run workflow**.
+
+Limits: Xcode may create an Apple Development certificate on each fresh runner during archive; revoke old "Created via API" development certificates occasionally. The job has not been run yet (no Apple account), so the first run may need small fixes.

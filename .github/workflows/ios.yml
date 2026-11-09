@@ -27,8 +27,47 @@ jobs:
         with:
           name: ios-simulator-app
           path: native/ios-simulator-app.zip
+# ---------------------------------------------------------------------------
+# TestFlight upload (DISABLED - uncomment once the Apple Developer account,
+# the App Store Connect app record for com.frankzhang.onesecond and the API key
+# exist).
+#
+# Signing uses ONLY an App Store Connect API key (repo secrets ASC_KEY_ID,
+# ASC_ISSUER_ID, ASC_KEY_P8). No .p12 certificate or provisioning profile is
+# stored anywhere.
+#
+# Approach: Xcode automatic signing + cloud-managed distribution signing.
+#   xcodebuild archive / -exportArchive with -allowProvisioningUpdates and
+#   -authenticationKeyPath/-authenticationKeyID/-authenticationKeyIssuerID lets
+#   Xcode register the App ID, create/download the App Store provisioning
+#   profile and sign the IPA with Apple's *cloud-managed* Apple Distribution
+#   certificate. Its private key stays at Apple, so nothing is lost when the
+#   ephemeral runner is destroyed and no new distribution certificate piles up
+#   each run. The export step uploads straight to App Store Connect
+#   (destination=upload), so no altool/Transporter step is needed.
+#
+# Tradeoffs / limits (why not fastlane cert+sigh):
+#   - fastlane `cert`/`get_certificates` on an ephemeral runner creates a NEW
+#     Apple Distribution certificate every run (the private key only exists in
+#     that run's temp keychain). Apple allows only a few distribution certs per
+#     team, so runs start failing until old certs are revoked. fastlane `match`
+#     avoids that but needs an extra private git repo + passphrase secret.
+#   - Cloud-managed distribution signing needs the API key to have the Admin
+#     role (or a role with "Access to Cloud Managed Distribution Certificate").
+#     App Manager may be rejected for cloud signing; use Admin if so.
+#   - The archive step signs with an Apple Development identity; on a fresh
+#     runner Xcode may create a development certificate via the API key. Those
+#     are cheap and revocable (Certificates page), but if they accumulate,
+#     revoke old "Created via API" development certificates now and then.
+#   - The team ID is looked up from the API key (bundle ID seedId); set the
+#     optional repo VARIABLE APPLE_TEAM_ID (not a secret) to skip the lookup.
+#   - Build number = GitHub run number, so every upload is unique.
+#   - Not tested yet: no Apple account exists. Expect to adjust on first run.
+# ---------------------------------------------------------------------------
 #  testflight:
-#    runs-on: macos-15
+#    runs-on: macos-15-intel
+#    env:
+#      BUNDLE_ID: com.frankzhang.onesecond
 #    steps:
 #      - uses: actions/checkout@v4
 #      - uses: actions/setup-node@v4
@@ -40,28 +79,77 @@ jobs:
 #        working-directory: native
 #      - run: npm run build:web && npx cap sync ios
 #        working-directory: native
-#      - name: Install signing assets
+#      - name: Write App Store Connect API key
 #        env:
-#          IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
-#          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-#          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+#          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+#          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
 #        run: |
-#          printf '%s' "$IOS_CERTIFICATE_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
-#          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
-#          security create-keychain -p temporary build.keychain
-#          security import "$RUNNER_TEMP/certificate.p12" -k build.keychain -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-#          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-#          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/profile.mobileprovision"
-#      - run: xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -archivePath build/App.xcarchive archive
-#        working-directory: native
-#      - run: xcodebuild -exportArchive -archivePath build/App.xcarchive -exportPath build/export -exportOptionsPlist ios/ExportOptions.plist
-#        working-directory: native
-#      - name: Upload to App Store Connect
+#          mkdir -p "$RUNNER_TEMP/asc"
+#          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
+#          chmod 600 "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
+#          echo "ASC_KEY_PATH=$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+#      - name: Resolve team ID (register bundle ID if missing)
 #        env:
-#          APPSTORE_CONNECT_API_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
-#          APPSTORE_CONNECT_API_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_API_ISSUER_ID }}
-#          APPSTORE_CONNECT_API_KEY_P8: ${{ secrets.APPSTORE_CONNECT_API_KEY_P8 }}
+#          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+#          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+#          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
 #        run: |
-#          mkdir -p ~/.appstoreconnect/private_keys
-#          printf '%s' "$APPSTORE_CONNECT_API_KEY_P8" > ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_CONNECT_API_KEY_ID}.p8
-#          xcrun altool --upload-app --type ios --file build/export/App.ipa --apiKey "$APPSTORE_CONNECT_API_KEY_ID" --apiIssuer "$APPSTORE_CONNECT_API_ISSUER_ID"
+#          if [[ -n "$APPLE_TEAM_ID" ]]; then echo "TEAM_ID=$APPLE_TEAM_ID" >> "$GITHUB_ENV"; exit 0; fi
+#          python3 -m pip install --quiet pyjwt cryptography requests
+#          python3 - <<'PY'
+#          import os, time, jwt, requests
+#          key = open(os.environ["ASC_KEY_PATH"]).read()
+#          now = int(time.time())
+#          token = jwt.encode({"iss": os.environ["ASC_ISSUER_ID"], "iat": now, "exp": now + 900,
+#                              "aud": "appstoreconnect-v1"}, key, algorithm="ES256",
+#                             headers={"kid": os.environ["ASC_KEY_ID"]})
+#          h = {"Authorization": f"Bearer {token}"}
+#          api = "https://api.appstoreconnect.apple.com/v1/bundleIds"
+#          bid = os.environ["BUNDLE_ID"]
+#          r = requests.get(api, headers=h, params={"filter[identifier]": bid}); r.raise_for_status()
+#          data = [d for d in r.json()["data"] if d["attributes"]["identifier"] == bid]
+#          if not data:
+#              body = {"data": {"type": "bundleIds", "attributes": {"identifier": bid, "name": "ONE SECOND", "platform": "IOS"}}}
+#              r = requests.post(api, headers=h, json=body); r.raise_for_status()
+#              data = [r.json()["data"]]
+#          with open(os.environ["GITHUB_ENV"], "a") as f:
+#              f.write(f"TEAM_ID={data[0]['attributes']['seedId']}\n")
+#          PY
+#      - name: Archive (automatic signing via API key)
+#        working-directory: native
+#        env:
+#          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+#          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+#        run: |
+#          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+#            -destination 'generic/platform=iOS' -archivePath build/App.xcarchive \
+#            -allowProvisioningUpdates \
+#            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+#            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+#            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+#            archive
+#      - name: Export with cloud signing and upload to TestFlight
+#        working-directory: native
+#        env:
+#          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+#          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+#        run: |
+#          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+#          <?xml version="1.0" encoding="UTF-8"?>
+#          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+#          <plist version="1.0"><dict>
+#            <key>method</key><string>app-store-connect</string>
+#            <key>destination</key><string>upload</string>
+#            <key>signingStyle</key><string>automatic</string>
+#            <key>teamID</key><string>${TEAM_ID}</string>
+#            <key>manageAppVersionAndBuildNumber</key><false/>
+#            <key>uploadSymbols</key><true/>
+#          </dict></plist>
+#          PLIST
+#          xcodebuild -exportArchive -archivePath build/App.xcarchive \
+#            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath build/export \
+#            -allowProvisioningUpdates \
+#            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+#      - name: Remove API key file
+#        if: always()
+#        run: rm -rf "$RUNNER_TEMP/asc"
