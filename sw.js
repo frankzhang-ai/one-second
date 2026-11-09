@@ -1,5 +1,5 @@
 // Cache the complete local app shell for offline launches.
-const CACHE = 'onesecond-v5';
+const CACHE = 'onesecond-v6';
 const FILES = [
   './', './index.html', './styles.css', './manifest.webmanifest', './sw.js',
   './js/main.js', './js/native.js', './js/game.js', './js/render.js', './js/audio.js', './js/analytics.js',
