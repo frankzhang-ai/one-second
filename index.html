@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#FAF7F0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="One Second">
+    <meta name="description" content="One tap. One moment. One more try.">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+    <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
+    <link rel="apple-touch-icon" href="./icons/icon-180.png">
+    <link rel="apple-touch-startup-image" href="./splash/splash-1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="./splash/splash-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="./splash/splash-1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="./splash/splash-1284x2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="./splash/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="./splash/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="./splash/splash-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="stylesheet" href="./styles.css">
+    <title>
+      ONE SECOND
+    </title>
+  </head>
+  <body>
+    <!-- Decorative background and launch screen. -->
+    <div class="ambient" aria-hidden="true">
+      <i>
+      </i>
+      <i>
+      </i>
+      <i>
+      </i>
+      <i>
+      </i>
+      <i>
+      </i>
+    </div>
+    <div id="launch" class="launch" aria-hidden="true">
+      <div class="brand-mark">
+        <span>
+        </span>
+      </div>
+      <strong>
+        ONE SECOND
+      </strong>
+    </div>
+    <main id="app">
+      <!-- Home screen and run controls. -->
+      <section id="home" class="screen home" aria-label="Home">
+        <div class="topline">
+          <span class="eyebrow">
+            A LITTLE GAME OF TIMING
+          </span>
+          <button class="sound button-icon" aria-label="Toggle sound" title="Toggle sound">
+          </button>
+        </div>
+        <div class="home-center">
+          <div class="hero-orbit">
+            <span class="hero-target">
+            </span>
+            <span class="hero-ball">
+            </span>
+          </div>
+          <p class="eyebrow">
+            TRUST YOUR TIMING
+          </p>
+          <h1>
+            ONE
+            <br>
+            SECOND
+          </h1>
+          <p class="tagline">
+            One tap. One moment.
+            <br>
+            One more try.
+          </p>
+        </div>
+        <div class="home-bottom">
+          <button id="play" class="primary">
+            Play
+          </button>
+          <div class="best-line">
+            BEST SCORE
+            <strong id="home-best">
+              0
+            </strong>
+          </div>
+        </div>
+      </section>
+      <!-- Active run HUD and timing arena. -->
+      <section id="game" class="screen game hidden" aria-label="Game">
+        <header class="game-header">
+          <div>
+            <span class="eyebrow">
+              SCORE
+            </span>
+            <strong id="score">
+              0
+            </strong>
+          </div>
+          <div class="run-meta">
+            <span id="combo">
+              COMBO  0
+            </span>
+            <span id="level">
+              LEVEL 1
+            </span>
+            <div id="lives" class="lives" aria-label="3 lives">
+              <i>
+              </i>
+              <i>
+              </i>
+              <i>
+              </i>
+            </div>
+          </div>
+          <button id="pause" class="button-icon pause-icon" aria-label="Pause game">
+          </button>
+        </header>
+        <div class="arena">
+          <canvas id="board" aria-label="Timing ring">
+          </canvas>
+          <div id="feedback" class="feedback" aria-live="polite">
+          </div>
+          <div id="toast" class="toast">
+          </div>
+        </div>
+        <p class="tap-hint">
+          TAP WHEN THE DOT REACHES THE ARC
+        </p>
+      </section>
+      <!-- End-of-run score and replay controls. -->
+      <section id="over" class="screen end hidden" aria-label="Game over">
+        <div class="end-content">
+          <span class="eyebrow">
+            THAT WAS A GOOD RUN
+          </span>
+          <div class="end-orbit">
+            <span>
+            </span>
+          </div>
+          <h2>
+            Game over
+          </h2>
+          <p class="end-score-label">
+            YOUR SCORE
+          </p>
+          <div id="final-score" class="final-score">
+            0
+          </div>
+          <div id="new-best" class="new-best hidden">
+            NEW BEST
+          </div>
+          <div class="end-best">
+            BEST SCORE
+            <strong id="final-best">
+              0
+            </strong>
+          </div>
+          <button id="again" class="primary">
+            Play again
+          </button>
+          <button id="menu" class="text-button">
+            Back to home
+          </button>
+        </div>
+      </section>
+      <!-- Pause dialog sits above the current screen. -->
+      <div id="pause-overlay" class="overlay hidden">
+        <div class="dialog">
+          <span class="eyebrow">
+            TAKE A BREATH
+          </span>
+          <h2>
+            Paused
+          </h2>
+          <button id="resume" class="primary">
+            Resume
+          </button>
+          <button id="quit" class="text-button">
+            Quit to home
+          </button>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="./js/main.js">
+    </script>
+  </body>
+</html>

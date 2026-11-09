@@ -1,0 +1,16 @@
+# Publish only the app. Everything else in this folder (planning notes,
+# conversations, other agents' scratch files) stays local.
+/*
+!/.gitignore
+!/.nojekyll
+!/README.md
+!/index.html
+!/styles.css
+!/sw.js
+!/manifest.webmanifest
+!/js/
+!/icons/
+!/splash/
+!/tests/
+!/tools/
+__pycache__/

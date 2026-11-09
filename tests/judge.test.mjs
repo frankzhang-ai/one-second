@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { angleDifference, judge, levelStats, attempt, newGame } from '../js/game.js';
+assert.equal(angleDifference(359, 1), 2, 'wraparound difference');
+assert.equal(angleDifference(10, 190), 180, 'opposite angles');
+assert.equal(judge(0, 5, 35), 'PERFECT');
+assert.equal(judge(0, 10, 35), 'GOOD');
+assert.equal(judge(0, 12, 35), 'GOOD');
+assert.equal(judge(0, 17, 35), 'GOOD');
+assert.equal(judge(0, 18, 35), 'MISS');
+assert.equal(judge(0, 2, 12), 'PERFECT', 'narrow target scales perfect threshold to 2.4 degrees');
+assert.equal(judge(0, 4, 12), 'GOOD');
+assert.deepEqual(levelStats(1), { speed:180, targetWidth:35 });
+assert.equal(levelStats(2).speed, 201.60000000000002);
+assert.equal(levelStats(2).targetWidth, 32);
+assert.equal(levelStats(20).speed, 520);
+assert.equal(levelStats(20).targetWidth, 12);
+console.log('judge tests passed');
+let run = newGame(0); run.ballAngle = run.targetAngle;
+for (let hit = 1; hit <= 5; hit++) { run = attempt(run, hit * 100, () => .5); run.ballAngle = run.targetAngle; }
+assert.equal(run.score, 5);
+assert.equal(run.combo, 5);
+assert.equal(run.level, 2);
+assert.equal(run.speed, 201.60000000000002);
+assert.equal(run.targetWidth, 32);
