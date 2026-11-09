@@ -1,0 +1,67 @@
+name: iOS simulator build
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [native/**, js/**, index.html, styles.css, privacy.html, .github/workflows/ios.yml]
+jobs:
+  simulator:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: native/package-lock.json
+      - working-directory: native
+        run: npm ci
+      - working-directory: native
+        run: npm run build:web
+      - working-directory: native
+        run: npx cap sync ios
+      - working-directory: native
+        run: xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+      - run: ditto -c -k --sequesterRsrc --keepParent native/build/Build/Products/Debug-iphonesimulator/App.app native/ios-simulator-app.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-app
+          path: native/ios-simulator-app.zip
+#  testflight:
+#    runs-on: macos-15
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: actions/setup-node@v4
+#        with:
+#          node-version: 22
+#          cache: npm
+#          cache-dependency-path: native/package-lock.json
+#      - run: npm ci
+#        working-directory: native
+#      - run: npm run build:web && npx cap sync ios
+#        working-directory: native
+#      - name: Install signing assets
+#        env:
+#          IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+#          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+#          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+#        run: |
+#          printf '%s' "$IOS_CERTIFICATE_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+#          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+#          security create-keychain -p temporary build.keychain
+#          security import "$RUNNER_TEMP/certificate.p12" -k build.keychain -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+#          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+#          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/profile.mobileprovision"
+#      - run: xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -archivePath build/App.xcarchive archive
+#        working-directory: native
+#      - run: xcodebuild -exportArchive -archivePath build/App.xcarchive -exportPath build/export -exportOptionsPlist ios/ExportOptions.plist
+#        working-directory: native
+#      - name: Upload to App Store Connect
+#        env:
+#          APPSTORE_CONNECT_API_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
+#          APPSTORE_CONNECT_API_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_API_ISSUER_ID }}
+#          APPSTORE_CONNECT_API_KEY_P8: ${{ secrets.APPSTORE_CONNECT_API_KEY_P8 }}
+#        run: |
+#          mkdir -p ~/.appstoreconnect/private_keys
+#          printf '%s' "$APPSTORE_CONNECT_API_KEY_P8" > ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_CONNECT_API_KEY_ID}.p8
+#          xcrun altool --upload-app --type ios --file build/export/App.ipa --apiKey "$APPSTORE_CONNECT_API_KEY_ID" --apiIssuer "$APPSTORE_CONNECT_API_ISSUER_ID"
