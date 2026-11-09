@@ -5,6 +5,7 @@ import { getBest, saveBest, getSound, saveSound } from './storage.js';
 import { setEnabled, unlock, tone } from './audio.js';
 import { track, trackReturns, scoreBand } from './analytics.js';
 import { isNative, platform, haptic, initNative } from './native.js';
+import { createEffects } from './effects.js';
 
 // Cache app elements and initialize the current run.
 const $ = id => document.getElementById(id);
@@ -18,7 +19,10 @@ let paused = false;
 let lastFrame = 0;
 let anim = 0;
 let newBestThisRun = false;
+let newBestShownThisRun = false;
 const renderer = createRenderer($('board'));
+const effects = createEffects();
+let lastMilestone = null;
 let tapsThisRun = 0;
 let runsThisPage = 0;
 const tapHint = document.querySelector('.tap-hint');
@@ -65,6 +69,7 @@ function updateUI() {
 
 // Start a run directly from a Play control.
 function start() {
+  effects.reset();
   unlock();
   runsThisPage++;
   track('game-start');
@@ -72,6 +77,7 @@ function start() {
   tapsThisRun = 0;
   tapHint.classList.remove('faded');
   newBestThisRun = false;
+  newBestShownThisRun = false;
   state = newGame(best);
   paused = false;
   pauseOverlay.classList.add('hidden');
@@ -82,6 +88,7 @@ function start() {
 
 // Show the final score and save a new record when a run ends.
 function finish() {
+  effects.reset();
   track('game-over', `score ${scoreBand(state.score)}`);
   updateBest(state.score);
   $('final-score').textContent = state.score;
@@ -117,6 +124,11 @@ function playAttempt() {
   if (state.score > previousBest) {
     newBestThisRun = true;
     updateBest(state.score);
+    if (previousBest > 0 && !newBestShownThisRun) {
+      effects.newBest();
+      newBestShownThisRun = true;
+      lastMilestone = { tier: 'newbest', combo: state.combo };
+    }
   }
   if (state.feedback) {
     if (state.feedback === 'PERFECT' || state.feedback === 'GOOD') haptic('hit');
@@ -127,7 +139,12 @@ function playAttempt() {
     feedback.className = 'feedback';
     void feedback.offsetWidth;
     updateUI();
-    if (state.levelUp) tone('LEVEL');
+    if (state.levelUp) {
+      const tier = effects.milestone(state.combo);
+      if (tier) lastMilestone = { tier, combo: state.combo };
+      else tone('LEVEL');
+      if (tier === 'tier3') haptic('hit');
+    }
   }
   if (state.state === 'over') finish();
 }
@@ -136,6 +153,7 @@ function playAttempt() {
 $('play').addEventListener('click', start);
 $('again').addEventListener('click', start);
 $('menu').addEventListener('click', () => {
+  effects.reset();
   state = null;
   show(home);
 });
@@ -154,6 +172,7 @@ $('pause').addEventListener('pointerdown', event => {
 }, { passive: false });
 $('resume').addEventListener('click', () => setPaused(false));
 $('quit').addEventListener('click', () => {
+  effects.reset();
   setPaused(false);
   state = null;
   show(home);
@@ -194,7 +213,7 @@ setTimeout(() => $('launch').classList.add('done'), 800);
 setTimeout(() => $('launch').remove(), 1250);
 
 // Expose the stable read-only state shape for tests and automation.
-window.__ONESECOND__ = { getState() { return state ? Object.freeze({ state: paused ? 'paused' : state.state, score: state.score, best, combo: state.combo, lives: state.lives, level: state.level, speed: state.speed, targetWidth: state.targetWidth, ballAngle: state.ballAngle, targetAngle: state.targetAngle }) : Object.freeze({ state: 'home', score: 0, best, combo: 0, lives: 3, level: 1, speed: 180, targetWidth: 35, ballAngle: 0, targetAngle: 0 }); } };
+window.__ONESECOND__ = { getState() { return state ? Object.freeze({ state: paused ? 'paused' : state.state, score: state.score, best, combo: state.combo, lives: state.lives, level: state.level, speed: state.speed, targetWidth: state.targetWidth, ballAngle: state.ballAngle, targetAngle: state.targetAngle }) : Object.freeze({ state: 'home', score: 0, best, combo: 0, lives: 3, level: 1, speed: 180, targetWidth: 35, ballAngle: 0, targetAngle: 0 }); }, get lastMilestone() { return lastMilestone ? Object.freeze({ ...lastMilestone }) : null; }, debugMilestone(combo) { unlock(); const tier = effects.milestone(Number(combo)); if (tier) lastMilestone = { tier, combo: Number(combo) }; return tier; } };
 
 if (isNative) {
   if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(registrations => registrations.forEach(registration => registration.unregister())).catch(() => {});
