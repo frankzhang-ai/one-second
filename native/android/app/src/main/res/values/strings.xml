@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ONE SECOND</string>
+    <string name="title_activity_main">ONE SECOND</string>
+    <string name="package_name">com.frankzhang.onesecond</string>
+    <string name="custom_url_scheme">com.frankzhang.onesecond</string>
+</resources>

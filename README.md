@@ -32,3 +32,7 @@ node tests/analytics.test.mjs
 - `tests/judge.test.mjs`: angle judgment, difficulty, and combo checks
 - `tests/analytics.test.mjs`: analytics score band checks
 - `tools/make_icons.py`: regenerate PNG icons and startup images (requires Pillow)
+
+## Native apps and privacy
+
+The shared Capacitor 8 iOS and Android project is in `native/`; from that directory run `npm run sync` to refresh bundled web files and synchronize platforms. See [native/README.md](native/README.md) for build and signing notes. The [Privacy Policy](privacy.html) applies to the website and mobile apps.

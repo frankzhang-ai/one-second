@@ -4,6 +4,7 @@ import { bindInput } from './input.js';
 import { getBest, saveBest, getSound, saveSound } from './storage.js';
 import { setEnabled, unlock, tone } from './audio.js';
 import { track, trackReturns, scoreBand } from './analytics.js';
+import { isNative, platform, haptic, initNative } from './native.js';
 
 // Cache app elements and initialize the current run.
 const $ = id => document.getElementById(id);
@@ -118,7 +119,13 @@ function playAttempt() {
     updateBest(state.score);
   }
   if (state.feedback) {
+    if (state.feedback === 'PERFECT' || state.feedback === 'GOOD') haptic('hit');
+    if (state.feedback === 'MISS') haptic('miss');
     tone(state.feedback);
+    // Restart the feedback animation even when the same rating repeats.
+    const feedback = $('feedback');
+    feedback.className = 'feedback';
+    void feedback.offsetWidth;
     updateUI();
     if (state.levelUp) tone('LEVEL');
   }
@@ -189,4 +196,23 @@ setTimeout(() => $('launch').remove(), 1250);
 // Expose the stable read-only state shape for tests and automation.
 window.__ONESECOND__ = { getState() { return state ? Object.freeze({ state: paused ? 'paused' : state.state, score: state.score, best, combo: state.combo, lives: state.lives, level: state.level, speed: state.speed, targetWidth: state.targetWidth, ballAngle: state.ballAngle, targetAngle: state.targetAngle }) : Object.freeze({ state: 'home', score: 0, best, combo: 0, lives: 3, level: 1, speed: 180, targetWidth: 35, ballAngle: 0, targetAngle: 0 }); } };
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+if (isNative) {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(registrations => registrations.forEach(registration => registration.unregister())).catch(() => {});
+} else if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+
+let pageviewSent = false;
+function trackPageviewWhenReady() {
+  if (pageviewSent) return;
+  if (window.goatcounter?.count) {
+    pageviewSent = true;
+    window.goatcounter.count({ path: '/app/' + platform, title: 'ONE SECOND ' + platform });
+  } else setTimeout(trackPageviewWhenReady, 100);
+}
+if (isNative) trackPageviewWhenReady();
+
+initNative({ onBack: () => {
+  if (state?.state === 'game' && !paused) setPaused(true);
+  else if (paused) { setPaused(false); state = null; show(home); }
+  else if (state?.state === 'over') { state = null; show(home); }
+  else window.Capacitor?.Plugins?.App?.exitApp();
+} });

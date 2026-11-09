@@ -1,8 +1,8 @@
 // Cache the complete local app shell for offline launches.
-const CACHE = 'onesecond-v4';
+const CACHE = 'onesecond-v5';
 const FILES = [
   './', './index.html', './styles.css', './manifest.webmanifest', './sw.js',
-  './js/main.js', './js/game.js', './js/render.js', './js/audio.js', './js/analytics.js',
+  './js/main.js', './js/native.js', './js/game.js', './js/render.js', './js/audio.js', './js/analytics.js',
   './js/storage.js', './js/input.js', './icons/icon.svg',
   './icons/favicon-32.png', './icons/icon-180.png', './icons/icon-192.png',
   './icons/icon-512.png', './icons/maskable-192.png', './icons/maskable-512.png',

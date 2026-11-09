@@ -1,0 +1,8 @@
+{
+  "appId": "com.frankzhang.onesecond",
+  "appName": "ONE SECOND",
+  "webDir": "www",
+  "backgroundColor": "#FAF7F0",
+  "ios": { "contentInset": "never", "scrollEnabled": false },
+  "android": { "allowMixedContent": false }
+}

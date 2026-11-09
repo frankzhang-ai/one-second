@@ -603,3 +603,6 @@ button {
 .screen.locked {
   pointer-events: none;
 }
+
+.privacy-link { display: block; margin-top: 10px; color: #8c8981; font-size: 11px; text-align: center; text-decoration: none; }
+.privacy-link:focus-visible { outline: 2px solid #b9d8c5; outline-offset: 3px; }
