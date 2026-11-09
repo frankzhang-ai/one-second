@@ -1,9 +1,6 @@
 name: Android build
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: [native/**, js/**, index.html, styles.css, privacy.html, .github/workflows/android.yml]
 jobs:
   build:
     runs-on: ubuntu-latest
