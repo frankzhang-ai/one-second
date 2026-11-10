@@ -68,7 +68,7 @@ button {
   justify-content:space-between
 }
 .topline { position:relative; }
-.leaderboard-open { position:absolute; left:50%; transform:translateX(-50%); height:36px; padding:0 11px; border-radius:18px; background:#ffffffb8; font-size:15px; box-shadow:0 3px 12px #57513c0d; }
+.leaderboard-open { position:absolute; right:54px; top:50%; transform:translateY(-50%); height:36px; padding:0 11px; border-radius:18px; background:#ffffffb8; font-size:15px; box-shadow:0 3px 12px #57513c0d; }
 .eyebrow {
   font-size:10px;
   letter-spacing:.19em;
@@ -647,8 +647,8 @@ input, .end, .leaderboard-list, .gameover-leaderboard { -webkit-user-select:text
 .milestone-flash.big { background:radial-gradient(ellipse at center, #FAF7F0f2 0%, #EFB7A899 52%, #C9BDE866 100%); }
 .milestone-confetti { z-index:21; }
 .milestone-title {
-  z-index:22; display:grid; place-items:center; text-align:center;
-  padding:24px; font-weight:950; font-size:var(--title-size, clamp(2.1rem, 13vw, 5.7rem));
+  z-index:22; display:grid; place-items:start center; align-content:start; text-align:center;
+  padding:calc(env(safe-area-inset-top) + 17vh) 24px 24px; font-weight:950; font-size:var(--title-size, clamp(2.1rem, 13vw, 5.7rem));
   line-height:.95; letter-spacing:-.055em; color:var(--butter);
   -webkit-text-stroke:1.5px var(--ink);
   text-shadow:3px 4px 0 var(--ink), 0 0 28px #FAF7F0;
