@@ -60,6 +60,7 @@
             <svg class="sound-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a5 5 0 0 1 0 6M18.5 6.5a9 9 0 0 1 0 11"/></svg>
             <svg class="sound-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="m17 9 5 6m0-6-5 6"/></svg>
           </button>
+          <button id="leaderboard-open" class="leaderboard-open" aria-label="Leaderboard" title="Leaderboard">🏆</button>
         </div>
         <div class="home-center">
           <div class="hero-orbit">
@@ -159,6 +160,12 @@
           <div id="new-best" class="new-best hidden">
             NEW BEST
           </div>
+          <section id="save-prompt" class="save-prompt hidden" aria-label="Save leaderboard score">
+            <strong>Top 10! Save your name?</strong>
+            <input id="leaderboard-name" type="text" maxlength="10" autocomplete="off" autocapitalize="words" enterkeyhint="done" aria-label="Your name">
+            <div class="save-actions"><button id="leaderboard-save" class="save-button">Save</button><button id="leaderboard-skip" class="skip-button">No thanks</button></div>
+          </section>
+          <section id="gameover-leaderboard" class="gameover-leaderboard hidden" aria-label="Top 10 leaderboard"></section>
           <div class="end-best">
             BEST SCORE
             <strong id="final-best">
@@ -173,6 +180,9 @@
           </button>
         </div>
       </section>
+      <div id="leaderboard-overlay" class="overlay hidden" aria-label="Leaderboard">
+        <div class="dialog leaderboard-dialog"><span class="eyebrow">ONE SECOND</span><h2>Leaderboard</h2><section id="leaderboard-list" class="leaderboard-list"></section><button id="leaderboard-close" class="primary">Close</button></div>
+      </div>
       <!-- Pause dialog sits above the current screen. -->
       <div id="pause-overlay" class="overlay hidden">
         <div class="dialog">

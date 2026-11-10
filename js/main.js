@@ -6,6 +6,7 @@ import { setEnabled, unlock, tone } from './audio.js';
 import { track, trackReturns, scoreBand } from './analytics.js';
 import { isNative, platform, haptic, initNative } from './native.js';
 import { createEffects } from './effects.js';
+import { qualifies, insert, getLeaderboard, saveLeaderboard, getLastName, saveLastName } from './leaderboard.js';
 
 // Cache app elements and initialize the current run.
 const $ = id => document.getElementById(id);
@@ -25,6 +26,8 @@ const effects = createEffects();
 let lastMilestone = null;
 let tapsThisRun = 0;
 let runsThisPage = 0;
+let pendingEntry = null;
+let highlightedIndex = -1;
 const tapHint = document.querySelector('.tap-hint');
 trackReturns();
 
@@ -93,11 +96,49 @@ function finish() {
   updateBest(state.score);
   $('final-score').textContent = state.score;
   $('new-best').classList.toggle('hidden', !newBestThisRun);
+  pendingEntry = null;
+  highlightedIndex = -1;
+  $('save-prompt').classList.add('hidden');
+  const list = getLeaderboard();
+  if (state.score > 0 && qualifies(list, state.score)) {
+    pendingEntry = { score: state.score, date: new Date().toISOString() };
+    $('leaderboard-name').value = getLastName().slice(0, 10);
+    $('save-prompt').classList.remove('hidden');
+    $('gameover-leaderboard').classList.add('hidden');
+  } else renderGameoverLeaderboard(list);
   // Briefly lock the game-over buttons so the losing tap (or its trailing
   // click) cannot land on "Play again" and instantly restart the run.
   over.classList.add('locked');
   setTimeout(() => over.classList.remove('locked'), 700);
   show(over);
+}
+
+function renderRows(container, list, highlight = -1, emptyMessage = '') {
+  container.replaceChildren();
+  if (!list.length) { const empty = document.createElement('p'); empty.className = 'leaderboard-empty'; empty.textContent = emptyMessage; container.append(empty); return; }
+  list.forEach((entry, index) => {
+    const row = document.createElement('div'); row.className = 'leaderboard-row';
+    if (index === highlight) row.classList.add('highlight');
+    const rank = document.createElement('span'); rank.className = 'leaderboard-rank'; rank.textContent = `${index + 1}.`;
+    const name = document.createElement('span'); name.className = 'leaderboard-name'; name.textContent = entry.name;
+    const score = document.createElement('strong'); score.textContent = String(entry.score);
+    row.append(rank, name, score); container.append(row);
+  });
+}
+function renderGameoverLeaderboard(list = getLeaderboard()) {
+  const panel = $('gameover-leaderboard');
+  panel.classList.remove('hidden');
+  renderRows(panel, list, highlightedIndex);
+}
+function saveRun() {
+  if (!pendingEntry) return;
+  const name = $('leaderboard-name').value.trim().slice(0, 10) || 'Player';
+  const result = insert(getLeaderboard(), { ...pendingEntry, name });
+  saveLeaderboard(result.list); saveLastName(name); highlightedIndex = result.index;
+  pendingEntry = null; $('save-prompt').classList.add('hidden'); renderGameoverLeaderboard(result.list);
+}
+function skipSave() {
+  pendingEntry = null; highlightedIndex = -1; $('save-prompt').classList.add('hidden'); renderGameoverLeaderboard();
 }
 
 // Advance animation and draw each active game frame.
@@ -153,10 +194,17 @@ function playAttempt() {
 $('play').addEventListener('click', start);
 $('again').addEventListener('click', start);
 $('menu').addEventListener('click', () => {
+  pendingEntry = null;
   effects.reset();
   state = null;
   show(home);
 });
+$('leaderboard-save').addEventListener('click', saveRun);
+$('leaderboard-skip').addEventListener('click', skipSave);
+$('leaderboard-name').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); saveRun(); } });
+$('leaderboard-name').addEventListener('focus', () => setTimeout(() => $('leaderboard-name').scrollIntoView({ block: 'center', behavior: 'smooth' }), 150));
+$('leaderboard-open').addEventListener('click', () => { renderRows($('leaderboard-list'), getLeaderboard(), -1, 'No scores yet - play a round!'); $('leaderboard-overlay').classList.remove('hidden'); });
+$('leaderboard-close').addEventListener('click', () => $('leaderboard-overlay').classList.add('hidden'));
 bindInput(game, playAttempt);
 
 // Pause and resume without allowing the pause tap to become an attempt.
@@ -205,7 +253,11 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('resize', () => renderer.resize());
 window.addEventListener('orientationchange', () => setTimeout(() => renderer.resize(), 100));
-document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+document.addEventListener('touchmove', event => {
+  if (event.target.closest?.('#over, #leaderboard-overlay')) return;
+  if (event.target.closest?.('input, button')) return;
+  event.preventDefault();
+}, { passive: false });
 document.addEventListener('gesturestart', event => event.preventDefault());
 document.addEventListener('dblclick', event => event.preventDefault());
 requestAnimationFrame(frame);
@@ -214,6 +266,16 @@ setTimeout(() => $('launch').remove(), 1250);
 
 // Expose the stable read-only state shape for tests and automation.
 window.__ONESECOND__ = { getState() { return state ? Object.freeze({ state: paused ? 'paused' : state.state, score: state.score, best, combo: state.combo, lives: state.lives, level: state.level, speed: state.speed, targetWidth: state.targetWidth, ballAngle: state.ballAngle, targetAngle: state.targetAngle }) : Object.freeze({ state: 'home', score: 0, best, combo: 0, lives: 3, level: 1, speed: 180, targetWidth: 35, ballAngle: 0, targetAngle: 0 }); }, get lastMilestone() { return lastMilestone ? Object.freeze({ ...lastMilestone }) : null; }, debugMilestone(combo) { unlock(); const tier = effects.milestone(Number(combo)); if (tier) lastMilestone = { tier, combo: Number(combo) }; return tier; } };
+window.__ONESECOND__.getLeaderboard = () => getLeaderboard().map(entry => ({ ...entry }));
+
+if (window.visualViewport) {
+  const updateKeyboardPadding = () => {
+    const keyboardHeight = Math.max(0, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop);
+    over.style.setProperty('--keyboard-padding', `${keyboardHeight}px`);
+  };
+  window.visualViewport.addEventListener('resize', updateKeyboardPadding);
+  updateKeyboardPadding();
+}
 
 if (isNative) {
   if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(registrations => registrations.forEach(registration => registration.unregister())).catch(() => {});
