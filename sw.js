@@ -1,5 +1,5 @@
 // Cache the complete local app shell for offline launches.
-const CACHE = 'onesecond-v6';
+const CACHE = 'onesecond-v7';
 const FILES = [
   './', './index.html', './styles.css', './manifest.webmanifest', './sw.js',
   './js/main.js', './js/native.js', './js/game.js', './js/render.js', './js/audio.js', './js/analytics.js',
@@ -33,7 +33,10 @@ self.addEventListener('activate', event => {
 // Serve cached files first and cache same-origin responses as they are used.
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  if (new URL(event.request.url).origin !== self.location.origin) return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+  // The /preview/ copy is a separate test build: never serve or cache it here.
+  if (url.pathname.includes('/preview/')) return;
   event.respondWith(
     caches.match(event.request).then(cached => cached || fetch(event.request)
       .then(response => {
