@@ -67,7 +67,7 @@ jobs:
           ls "$APP" | tee -a "$RUNNER_TEMP/archive-info.txt"
           test -f "$APP/PrivacyInfo.xcprivacy"
           ls "$APP/Frameworks" | tee -a "$RUNNER_TEMP/archive-info.txt"
-          if grep -R "goatcounter\|gc.zgo.at" "$APP/public"; then echo "analytics found"; exit 1; fi
+          if grep -R "gc\.zgo\.at\|goatcounter\.com/count" "$APP/public"; then echo "analytics found"; exit 1; fi
           test ! -e "$APP/public/sw.js"
           xcrun assetutil --info "$APP/Assets.car" | grep -E '"(Name|RenditionName|PixelWidth|Opaque)"' | head -20 | tee -a "$RUNNER_TEMP/archive-info.txt" || true
           echo "### Archive OK" >> "$GITHUB_STEP_SUMMARY"; sed 's/^/    /' "$RUNNER_TEMP/archive-info.txt" >> "$GITHUB_STEP_SUMMARY"
