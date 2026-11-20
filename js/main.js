@@ -83,6 +83,7 @@ function start() {
 // Show the final score and save a new record when a run ends.
 function finish() {
   track('game-over', `score ${scoreBand(state.score)}`);
+  haptic('over');
   updateBest(state.score);
   $('final-score').textContent = state.score;
   $('new-best').classList.toggle('hidden', !newBestThisRun);
@@ -119,7 +120,8 @@ function playAttempt() {
     updateBest(state.score);
   }
   if (state.feedback) {
-    if (state.feedback === 'PERFECT' || state.feedback === 'GOOD') haptic('hit');
+    if (state.levelUp) haptic('level');
+    else if (state.feedback === 'PERFECT' || state.feedback === 'GOOD') haptic('hit');
     if (state.feedback === 'MISS') haptic('miss');
     tone(state.feedback);
     // Restart the feedback animation even when the same rating repeats.

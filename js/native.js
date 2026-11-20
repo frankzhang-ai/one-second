@@ -5,8 +5,10 @@ export const platform = isNative ? (capacitor.getPlatform?.() === 'ios' ? 'ios' 
 export function haptic(kind) {
   if (!isNative) return;
   try {
-    const style = kind === 'hit' ? 'LIGHT' : 'MEDIUM';
-    capacitor.Plugins?.Haptics?.impact({ style });
+    const haptics = capacitor.Plugins?.Haptics;
+    if (kind === 'level') haptics?.notification({ type: 'SUCCESS' });
+    else if (kind === 'over') haptics?.notification({ type: 'ERROR' });
+    else haptics?.impact({ style: kind === 'hit' ? 'LIGHT' : 'MEDIUM' });
   } catch {}
 }
 
