@@ -101,20 +101,21 @@ jobs:
           xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > "$OUT/console1.log" 2>&1 &
           waitfor "$OUT/console1.log" 'CI:boot' 60 || FAIL=1
           waitfor "$OUT/console1.log" 'CI:home' 30 && shot 01-home || FAIL=1
-          waitfor "$OUT/console1.log" 'CI:levelup' 90 && { sleep 0.25; shot 02-levelup; } || FAIL=1
-          waitfor "$OUT/console1.log" 'CI:perfect' 120 && { sleep 0.25; shot 03-perfect; } || FAIL=1
-          waitfor "$OUT/console1.log" 'CI:bg-ready' 30 || FAIL=1
-          T 60 xcrun simctl launch "$UDID" com.apple.Preferences; sleep 4; shot 90-backgrounded
-          waitfor "$OUT/console1.log" 'CI:hidden' 10 || echo "note: no hidden marker"
-          T 30 xcrun simctl launch "$UDID" "$BUNDLE_ID" || T 30 xcrun simctl openurl "$UDID" onesecondci://resume
-          waitfor "$OUT/console1.log" 'CI:resumed' 30 && { sleep 0.5; shot 04-paused-after-background; } || FAIL=1
-          waitfor "$OUT/console1.log" 'CI:over' 120 && shot 05-game-over || FAIL=1
+          waitfor "$OUT/console1.log" 'CI:levelup' 90 && { for k in 1 2 3; do shot 02-levelup-$k; done; } || FAIL=1
+          waitfor "$OUT/console1.log" 'CI:perfect' 120 && { for k in 1 2 3 4 5 6 7 8; do shot 03-perfect-$k; done; } || FAIL=1
+          waitfor "$OUT/console1.log" 'CI:over' 120 && { sleep 0.5; shot 05-game-over; } || FAIL=1
           waitfor "$OUT/console1.log" 'CI:run1-done' 30 || FAIL=1
           sleep 4
           T 30 xcrun simctl terminate "$UDID" "$BUNDLE_ID"; sleep 2
           xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > "$OUT/console2.log" 2>&1 &
           waitfor "$OUT/console2.log" 'CI:run2 ' 60 || FAIL=1
-          waitfor "$OUT/console2.log" 'CI:run2-home' 30 && shot 06-home-after-relaunch || FAIL=1
+          waitfor "$OUT/console2.log" 'CI:run2-home' 30 && { sleep 0.5; shot 06-home-after-relaunch; } || FAIL=1
+          waitfor "$OUT/console2.log" 'CI:bg-ready' 60 || FAIL=1
+          T 60 xcrun simctl launch "$UDID" com.apple.Preferences; sleep 4; shot 90-backgrounded
+          waitfor "$OUT/console2.log" 'CI:hidden' 10 || echo "note: no hidden marker"
+          T 30 xcrun simctl launch "$UDID" "$BUNDLE_ID" || T 30 xcrun simctl openurl "$UDID" onesecondci://resume
+          waitfor "$OUT/console2.log" 'CI:resumed' 30 && { sleep 0.5; shot 04-paused-after-background; } || FAIL=1
+          waitfor "$OUT/console2.log" 'CI:bg-done' 30 || FAIL=1
           T 30 xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
           grep -h 'CI:' "$OUT"/console*.log | tee "$OUT/markers.txt"
           OVER=$(grep -o 'CI:over score=[0-9]* best=[0-9]*' "$OUT/markers.txt" | head -1)

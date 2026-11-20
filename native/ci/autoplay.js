@@ -37,29 +37,31 @@
       document.addEventListener('visibilitychange', on);
     });
   }
+  async function playFor(ms) {
+    const until = performance.now() + ms;
+    while (performance.now() < until) {
+      await frame();
+      const s = S();
+      if (s.state !== 'game') continue;
+      const win = Math.min(5, s.targetWidth * 0.2) * 0.85;
+      if (diff(s.ballAngle, s.targetAngle) <= win && performance.now() - lastTap > 120) { lastTap = performance.now(); tap(); }
+    }
+  }
   async function run1() {
     await wait(2500);
     log('home');
-    await wait(4000);
+    await wait(6000);
     $('play').click();
     await playUntil(5);
     log('levelup score=' + S().score + ' level=' + S().level);
-    await wait(2500);
-    await playUntil(12);
+    await wait(6000);
+    await playUntil(9);
     log('perfect score=' + S().score + ' combo=' + S().combo);
-    await wait(2500);
-    const back = waitVisibleAfterHidden();
-    log('bg-ready');
-    await back;
-    await wait(1000);
-    log('resumed state=' + S().state);
-    await wait(3000);
-    $('resume').click();
-    await wait(300);
+    await playFor(12000);
     await missUntilOver();
     await wait(1200);
     log('over score=' + $('final-score').textContent.trim() + ' best=' + $('final-best').textContent.trim());
-    await wait(3500);
+    await wait(6000);
     localStorage.setItem('ci.run1', 'done');
     document.querySelector('.sound').click();
     await wait(500);
@@ -73,6 +75,18 @@
     localStorage.setItem('ci.run1', 'checked');
     await wait(1500);
     log('run2-home soundOn=' + document.querySelector('.sound').getAttribute('aria-pressed'));
+    await wait(6000);
+    $('play').click();
+    await playUntil(3);
+    const back = waitVisibleAfterHidden();
+    log('bg-ready');
+    await back;
+    await wait(1000);
+    log('resumed state=' + S().state);
+    await wait(4000);
+    $('resume').click();
+    await wait(500);
+    log('bg-done state=' + S().state);
   }
   window.addEventListener('load', () => {
     log('boot native=' + !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
