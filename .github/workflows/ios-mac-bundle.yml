@@ -35,6 +35,7 @@ jobs:
   verify:
     needs: bundle
     runs-on: macos-26
+    timeout-minutes: 45
     env:
       BUNDLE_ID: com.frankzhang.onesecond
     steps:
@@ -82,18 +83,20 @@ jobs:
           xcodebuild -project App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/dd-sim" CODE_SIGNING_ALLOWED=NO build | tail -3
       - name: Run on simulator (save data, background/foreground, safe area, screenshots)
+        timeout-minutes: 15
         run: |
           set -u
+          T() { local s=$1; shift; echo "[$(date +%T)] $*"; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; local rc=$?; [ $rc -ne 0 ] && echo "[$(date +%T)] rc=$rc: $*"; return $rc; }
           APP="$RUNNER_TEMP/dd-sim/Build/Products/Debug-iphonesimulator/App.app"
           OUT="$RUNNER_TEMP/sim"; mkdir -p "$OUT/shots"
           pick() { xcrun simctl list devices available -j | python3 -c "import json,sys;n=sys.argv[1];d=json.load(sys.stdin)['devices'];c=[(r,x['udid']) for r,l in d.items() if 'iOS' in r for x in l if x['name']==n];c.sort();print(c[-1][1] if c else '')" "$1"; }
           UDID=$(pick "iPhone 17 Pro Max"); [ -n "$UDID" ] || UDID=$(pick "iPhone 16 Pro Max")
           echo "device $UDID"; xcrun simctl list devices | grep "$UDID"
-          xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b >/dev/null
-          xcrun simctl status_bar "$UDID" override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 || true
-          xcrun simctl install "$UDID" "$APP"
-          waitfor() { local f=$1 pat=$2 t=${3:-90}; for i in $(seq 1 $((t*5))); do grep -q "$pat" "$f" 2>/dev/null && return 0; sleep 0.2; done; echo "TIMEOUT waiting for $pat"; return 1; }
-          shot() { xcrun simctl io "$UDID" screenshot --type=png "$OUT/shots/$1.png" >/dev/null 2>&1 && echo "shot $1"; }
+          T 120 xcrun simctl boot "$UDID"; T 240 xcrun simctl bootstatus "$UDID" -b >/dev/null
+          T 30 xcrun simctl status_bar "$UDID" override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 || true
+          T 120 xcrun simctl install "$UDID" "$APP"
+          waitfor() { local f=$1 pat=$2 t=${3:-90}; for i in $(seq 1 $((t*5))); do grep -q "$pat" "$f" 2>/dev/null && { echo "[$(date +%T)] got $pat"; return 0; }; sleep 0.2; done; echo "[$(date +%T)] TIMEOUT waiting for $pat"; tail -5 "$f"; return 1; }
+          shot() { T 30 xcrun simctl io "$UDID" screenshot --type=png "$OUT/shots/$1.png" >/dev/null 2>&1 && echo "shot $1"; }
           FAIL=0
           xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > "$OUT/console1.log" 2>&1 &
           waitfor "$OUT/console1.log" 'CI:boot' 60 || FAIL=1
@@ -101,18 +104,18 @@ jobs:
           waitfor "$OUT/console1.log" 'CI:levelup' 90 && { sleep 0.25; shot 02-levelup; } || FAIL=1
           waitfor "$OUT/console1.log" 'CI:perfect' 120 && { sleep 0.25; shot 03-perfect; } || FAIL=1
           waitfor "$OUT/console1.log" 'CI:bg-ready' 30 || FAIL=1
-          xcrun simctl launch "$UDID" com.apple.Preferences; sleep 4; shot 90-backgrounded
+          T 60 xcrun simctl launch "$UDID" com.apple.Preferences; sleep 4; shot 90-backgrounded
           waitfor "$OUT/console1.log" 'CI:hidden' 10 || echo "note: no hidden marker"
-          xcrun simctl openurl "$UDID" onesecondci://resume
+          T 30 xcrun simctl launch "$UDID" "$BUNDLE_ID" || T 30 xcrun simctl openurl "$UDID" onesecondci://resume
           waitfor "$OUT/console1.log" 'CI:resumed' 30 && { sleep 0.5; shot 04-paused-after-background; } || FAIL=1
           waitfor "$OUT/console1.log" 'CI:over' 120 && shot 05-game-over || FAIL=1
           waitfor "$OUT/console1.log" 'CI:run1-done' 30 || FAIL=1
           sleep 4
-          xcrun simctl terminate "$UDID" "$BUNDLE_ID"; sleep 2
+          T 30 xcrun simctl terminate "$UDID" "$BUNDLE_ID"; sleep 2
           xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > "$OUT/console2.log" 2>&1 &
           waitfor "$OUT/console2.log" 'CI:run2 ' 60 || FAIL=1
           waitfor "$OUT/console2.log" 'CI:run2-home' 30 && shot 06-home-after-relaunch || FAIL=1
-          xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+          T 30 xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
           grep -h 'CI:' "$OUT"/console*.log | tee "$OUT/markers.txt"
           OVER=$(grep -o 'CI:over score=[0-9]* best=[0-9]*' "$OUT/markers.txt" | head -1)
           RUN2=$(grep -o 'CI:run2 best=[0-9]* soundOn=[a-z]*' "$OUT/markers.txt" | head -1)
@@ -122,11 +125,12 @@ jobs:
           if [ -n "$BEST1" ] && [ "$BEST1" = "$BEST2" ] && echo "$RUN2" | grep -q 'soundOn=false'; then echo "PERSISTENCE OK (best=$BEST1, sound off survived relaunch)" | tee -a "$GITHUB_STEP_SUMMARY"; else echo "PERSISTENCE FAILED" | tee -a "$GITHUB_STEP_SUMMARY"; FAIL=1; fi
           grep -q 'CI:resumed state=paused' "$OUT/markers.txt" && echo "BACKGROUND->FOREGROUND OK (run auto-paused)" | tee -a "$GITHUB_STEP_SUMMARY" || { echo "BACKGROUND CHECK FAILED" | tee -a "$GITHUB_STEP_SUMMARY"; FAIL=1; }
           grep -q 'goatcounter=undefined' "$OUT/markers.txt" && echo "NO ANALYTICS OK" | tee -a "$GITHUB_STEP_SUMMARY" || FAIL=1
-          xcrun simctl shutdown "$UDID" || true
+          T 60 xcrun simctl shutdown "$UDID" || true
           exit $FAIL
       - name: Small-screen check (iPhone SE / 16e if available)
         if: always()
         continue-on-error: true
+        timeout-minutes: 8
         run: |
           APP="$RUNNER_TEMP/dd-sim/Build/Products/Debug-iphonesimulator/App.app"; OUT="$RUNNER_TEMP/sim"; mkdir -p "$OUT/shots"
           for n in "iPhone SE (3rd generation)" "iPhone 16e"; do
