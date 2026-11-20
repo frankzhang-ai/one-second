@@ -83,7 +83,7 @@ jobs:
           xcodebuild -project App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/dd-sim" CODE_SIGNING_ALLOWED=NO build | tail -3
       - name: Run on simulator (save data, background/foreground, safe area, screenshots)
-        timeout-minutes: 15
+        timeout-minutes: 25
         run: |
           set -u
           T() { local s=$1; shift; echo "[$(date +%T)] $*"; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; local rc=$?; [ $rc -ne 0 ] && echo "[$(date +%T)] rc=$rc: $*"; return $rc; }
@@ -92,7 +92,14 @@ jobs:
           pick() { xcrun simctl list devices available -j | python3 -c "import json,sys;n=sys.argv[1];d=json.load(sys.stdin)['devices'];c=[(r,x['udid']) for r,l in d.items() if 'iOS' in r for x in l if x['name']==n];c.sort();print(c[-1][1] if c else '')" "$1"; }
           UDID=$(pick "iPhone 17 Pro Max"); [ -n "$UDID" ] || UDID=$(pick "iPhone 16 Pro Max")
           echo "device $UDID"; xcrun simctl list devices | grep "$UDID"
-          T 120 xcrun simctl boot "$UDID"; T 240 xcrun simctl bootstatus "$UDID" -b >/dev/null
+          bootit() { T 180 xcrun simctl boot "$1" && T 240 xcrun simctl bootstatus "$1" -b >/dev/null; }
+          if ! bootit "$UDID"; then
+            echo "boot hung; resetting CoreSimulator and retrying"
+            xcrun simctl shutdown all || true; killall -9 com.apple.CoreSimulator.CoreSimulatorService 2>/dev/null || true; sleep 5
+            ALT=$(pick "iPhone 16 Pro Max"); [ -n "$ALT" ] && UDID=$ALT
+            T 120 xcrun simctl erase "$UDID" || true
+            bootit "$UDID"
+          fi
           T 30 xcrun simctl status_bar "$UDID" override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 || true
           T 120 xcrun simctl install "$UDID" "$APP"
           waitfor() { local f=$1 pat=$2 t=${3:-90}; for i in $(seq 1 $((t*5))); do grep -q "$pat" "$f" 2>/dev/null && { echo "[$(date +%T)] got $pat"; return 0; }; sleep 0.2; done; echo "[$(date +%T)] TIMEOUT waiting for $pat"; tail -5 "$f"; return 1; }
@@ -131,7 +138,7 @@ jobs:
       - name: Small-screen check (iPhone SE / 16e if available)
         if: always()
         continue-on-error: true
-        timeout-minutes: 8
+        timeout-minutes: 5
         run: |
           APP="$RUNNER_TEMP/dd-sim/Build/Products/Debug-iphonesimulator/App.app"; OUT="$RUNNER_TEMP/sim"; mkdir -p "$OUT/shots"
           for n in "iPhone SE (3rd generation)" "iPhone 16e"; do
